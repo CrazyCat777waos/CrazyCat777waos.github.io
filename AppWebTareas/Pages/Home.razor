@@ -1,0 +1,412 @@
+﻿@page "/"
+@using AppWebTareas.Models
+@using AppWebTareas.Services
+@inject WebTaskService TaskService
+@inject WebSoundService SoundService
+
+<style>
+    /* --- Estilo tipo cuaderno --- */
+    .page-container {
+        max-width: 600px;
+        margin: auto;
+        padding: 20px;
+        background: #fffef8;
+        border: 2px solid #e0d7c2;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        background-image: repeating-linear-gradient( to bottom, #fffef8 0, #fffef8 32px, #e7e3d5 33px );
+        position: relative;
+        z-index: 1;
+    }
+
+    .page-title {
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+        font-weight: bold;
+        text-align: center;
+        color: #5a4c3a;
+    }
+
+    /* --- Dialog estilo móvil --- */
+    .dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        padding: 20px;
+    }
+
+    .dialog {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        animation: dialog-appear 0.3s ease-out;
+        z-index: 10001;
+    }
+
+    /* Animación de aparición del dialog */
+    @@keyframes dialog-appear {
+        from {
+            opacity: 0;
+            transform: scale(0.9) translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .dialog h4 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: #333;
+        text-align: center;
+    }
+
+    .dialog input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+
+    .dialog-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .btn {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        flex: 1;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+        .btn-secondary:hover {
+            background-color: #545b62;
+            transform: translateY(-2px);
+        }
+
+    /* --- Tareas estilo libreta --- */
+    .task-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(255,255,255,0.9);
+        border-left: 4px solid #c1b38a;
+        padding: 12px 15px;
+        margin: 12px 0;
+        border-radius: 6px;
+        backdrop-filter: blur(3px);
+        transition: all 0.6s ease;
+        transform-origin: left center;
+    }
+
+        .task-item.completed {
+            opacity: 0.4;
+            transform: scale(0.98) translateX(10px);
+            border-left-color: #888;
+            background: rgba(240, 240, 240, 0.7);
+        }
+
+    .task-content {
+        flex-grow: 1;
+        margin-left: 12px;
+    }
+
+    .task-title {
+        font-size: 1rem;
+        font-weight: bold;
+        color: #333;
+        position: relative;
+        display: inline-block;
+        transition: color 0.6s ease;
+    }
+
+    .task-item.completed .task-title {
+        color: #666;
+    }
+
+        /* Efecto de tachado mejorado */
+        .task-item.completed .task-title::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 100%;
+            height: 2px;
+            background: #000;
+            transform: translateY(-50%);
+            transition: width 0.6s ease;
+        }
+
+    .due-date {
+        font-size: 0.8rem;
+        color: #666;
+        transition: all 0.6s ease;
+    }
+
+    .task-item.completed .due-date {
+        opacity: 0.6;
+        transform: translateX(5px);
+    }
+
+    .btn-delete {
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 5px;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        opacity: 0.7;
+    }
+
+        .btn-delete:hover {
+            opacity: 1;
+            background-color: rgba(255, 0, 0, 0.1);
+            transform: scale(1.1);
+        }
+
+    .task-item.completed .btn-delete {
+        opacity: 0.5;
+    }
+
+    /* Checkbox mejorado */
+    .task-item input[type="checkbox"] {
+        transform: scale(1.3);
+        margin-right: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .task-item.completed input[type="checkbox"] {
+        opacity: 0.8;
+        transform: scale(1.2);
+    }
+
+    /* Botón Nueva Tarea */
+    .btn-new-task {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+
+        .btn-new-task:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+    /* Botón para silenciar sonidos */
+    .btn-sound {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #fffef8;
+        border: 2px solid #e0d7c2;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+        cursor: pointer;
+        z-index: 100;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+
+        .btn-sound:hover {
+            transform: scale(1.1);
+            background: #f8f5e9;
+        }
+</style>
+
+<div class="page-container">
+    <h3 class="page-title">📝 Mis Tareas Pendientes</h3>
+
+    <button @onclick="ShowAddTask" class="btn-new-task">+ Nueva Tarea</button>
+
+    @foreach (var task in tasks)
+    {
+        <div class="task-item @(task.IsCompleted ? "completed" : "")">
+            <input type="checkbox"
+                   checked="@task.IsCompleted"
+                   @onchange="(e) => ToggleTask(task, e)" />
+
+            <div class="task-content">
+                <span class="task-title">@task.Title</span><br />
+                <small class="due-date">⏰ Vence: @task.DueDate.ToShortDateString() a las @task.DueDate.ToShortTimeString()</small>
+            </div>
+
+            <button @onclick="() => DeleteTask(task.Id)" class="btn-delete">🗑️</button>
+        </div>
+    }
+
+    <!-- Modal -->
+    @if (showAddDialog)
+    {
+        <div class="dialog-overlay">
+            <div class="dialog">
+                <h4>➕ Nueva Tarea</h4>
+                <input @bind="newTaskTitle" placeholder="¿Qué necesitas hacer?" class="form-control" />
+                <input type="date" @bind="newTaskDate" class="form-control" />
+                <input type="time" @bind="newTaskTime" class="form-control" />
+
+                <div class="dialog-actions">
+                    <button @onclick="SaveNewTask" class="btn btn-primary">💾 Guardar</button>
+                    <button @onclick="CloseDialogAction" class="btn btn-secondary">❌ Cancelar</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Botón para silenciar sonidos -->
+    <button @onclick="ToggleSounds" class="btn-sound">
+        @(soundEnabled ? "🔊" : "🔇")
+    </button>
+</div>
+
+@code {
+    private List<TaskItem> tasks = new();
+    private bool showAddDialog = false;
+    private string newTaskTitle = "";
+    private DateTime newTaskDate = DateTime.Today.AddDays(1);
+    private TimeOnly? newTaskTime = new TimeOnly(12, 0);
+    private bool soundEnabled = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTasks();
+    }
+
+    private async Task LoadTasks()
+    {
+        tasks = await TaskService.GetPendingTasksAsync();
+        StateHasChanged();
+    }
+
+    private async Task ToggleTask(TaskItem task, ChangeEventArgs e)
+    {
+        var newValue = (bool)e.Value!;
+        task.IsCompleted = newValue;
+        task.UpdatedAt = DateTime.Now;
+        await TaskService.UpdateTaskAsync(task);
+
+        if (newValue)
+        {
+            await SoundService.PlayScratchSound();
+        }
+
+        StateHasChanged();
+
+        if (task.IsCompleted)
+        {
+            await Task.Delay(600);
+            var completedTask = task;
+            tasks.Remove(completedTask);
+            tasks.Add(completedTask);
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteTask(int id)
+    {
+        await SoundService.PlayDeleteSound();
+        await TaskService.DeleteTaskAsync(id);
+        await LoadTasks();
+    }
+
+    private async void ShowAddTask()
+    {
+        showAddDialog = true;
+        newTaskTitle = "";
+        newTaskDate = DateTime.Today.AddDays(1);
+        newTaskTime = new TimeOnly(12, 0);
+        StateHasChanged();
+
+        await SoundService.PlayPaperSound();
+    }
+
+    private async Task SaveNewTask()
+    {
+        if (!string.IsNullOrWhiteSpace(newTaskTitle))
+        {
+            var time = newTaskTime ?? new TimeOnly(12, 0);
+            var dueDate = new DateTime(
+                newTaskDate.Year, newTaskDate.Month, newTaskDate.Day,
+                time.Hour, time.Minute, time.Second
+            );
+
+            var newTask = new TaskItem
+                {
+                    Title = newTaskTitle.Trim(),
+                    Description = "",
+                    DueDate = dueDate,
+                    IsCompleted = false,
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
+                };
+
+            await TaskService.AddTaskAsync(newTask);
+            await SoundService.PlayAddSound();
+            await LoadTasks();
+            await CloseDialogAction();
+        }
+    }
+
+    private async Task CloseDialogAction()
+    {
+        showAddDialog = false;
+        StateHasChanged();
+        await SoundService.PlayPaperSound();
+    }
+
+    private void ToggleSounds()
+    {
+        soundEnabled = !soundEnabled;
+        SoundService.ToggleSounds(soundEnabled);
+        StateHasChanged();
+    }
+}
